@@ -1,10 +1,15 @@
 use halo2_proofs::{
     circuit::{AssignedCell, Chip, Layouter, SimpleFloorPlanner},
     dev::MockProver,
-    pasta::Fp,
-    plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector},
-    poly::Rotation,
+    pasta::{EqAffine, Fp},
+    plonk::{
+        create_proof, keygen_pk, keygen_vk, verify_proof, Advice, Circuit, Column,
+        ConstraintSystem, Error, Instance, Selector, SingleVerifier,
+    },
+    poly::{commitment::Params, Rotation},
+    transcript::{Blake2bRead, Blake2bWrite, Challenge255},
 };
+use rand::rngs::OsRng;
 
 // x * 3 + x + 5 = 35
 // x2 = x * x
@@ -242,7 +247,52 @@ fn main() {
     };
     let public_inputs = vec![result];
 
-    let prover = MockProver::run(4, &circuit, vec![public_inputs]).unwrap();
+    ////// basic run
+    // let prover = MockProver::run(4, &circuit, vec![public_inputs]).unwrap();
+    // assert_eq!(prover.verify(), Ok(()));
 
-    assert_eq!(prover.verify(), Ok(()));
+    /////// draw circuit plot
+    // use plotters::prelude::*;
+    // let root = BitMapBackend::new("layout.png", (1024, 768)).into_drawing_area();
+    // root.fill(&WHITE).unwrap();
+    // let root = root
+    //     .titled("Example Circuit Layout", ("sans-serif", 60))
+    //     .unwrap();
+
+    // halo2_proofs::dev::CircuitLayout::default()
+    //     .view_width(0..2)
+    //     .view_height(0..16)
+    //     .show_labels(false)
+    //     .render(5, &circuit, &root)
+    //     .unwrap()
+
+    ////// generating verifiable proof
+    let params: Params<EqAffine> = Params::new(4);
+    let vk = keygen_vk(&params, &circuit).unwrap();
+    let pk = keygen_pk(&params, vk, &circuit).unwrap();
+    let mut transcript = Blake2bWrite::<_, _, Challenge255<_>>::init(vec![]);
+    create_proof(
+        &params,
+        &pk,
+        &[circuit],
+        &[&[&[result]]],
+        OsRng,
+        &mut transcript,
+    )
+    .unwrap();
+
+    let proof = transcript.finalize();
+    println!("proof length is {:?}", proof.len());
+
+    ////// verification of proof
+    let strategy = SingleVerifier::new(&params);
+    let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
+    assert!(verify_proof(
+        &params,
+        pk.get_vk(),
+        strategy,
+        &[&[&[result]]],
+        &mut transcript
+    )
+    .is_ok());
 }
