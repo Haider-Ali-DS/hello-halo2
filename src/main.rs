@@ -137,7 +137,7 @@ impl Ops for MyChip {
             |mut region| {
                 config.s_mul.enable(&mut region, 0)?;
                 a.copy_advice(|| "lhs", &mut region, config.advice[0], 0)?;
-                a.copy_advice(|| "rhs", &mut region, config.advice[1], 0)?;
+                b.copy_advice(|| "rhs", &mut region, config.advice[1], 0)?;
                 let v = a.value().and_then(|a| b.value().map(|b| *a * *b));
                 region.assign_advice(
                     || "a * b",
@@ -161,7 +161,7 @@ impl Ops for MyChip {
             |mut region| {
                 config.s_add.enable(&mut region, 0)?;
                 a.copy_advice(|| "lhs", &mut region, config.advice[0], 0)?;
-                a.copy_advice(|| "rhs", &mut region, config.advice[1], 0)?;
+                b.copy_advice(|| "rhs", &mut region, config.advice[1], 0)?;
                 let v = a.value().and_then(|a| b.value().map(|b| *a + *b));
                 region.assign_advice(
                     || "a + b",
@@ -231,7 +231,8 @@ impl Circuit<Fp> for MyCircuit {
 }
 
 fn main() {
-    let x = Fp::from(4);
+    //replace this x to fail the circuit since 3 is correct solution for provided circuit
+    let x = Fp::from(3);
     let constant = Fp::from(5);
     let result = Fp::from(35);
 
